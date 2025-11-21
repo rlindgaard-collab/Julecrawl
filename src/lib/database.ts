@@ -56,6 +56,7 @@ export type CrawlState = {
   over_under_deck: Card[]
   over_under_message: string
   over_under_penalty: number | null
+  over_under_active_player_id: string | null
   ace_mode: 'low' | 'high' | 'both'
   updated_at: string
 }

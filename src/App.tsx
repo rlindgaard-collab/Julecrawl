@@ -126,6 +126,7 @@ function App() {
   const [overUnderStreak, setOverUnderStreak] = useState(0)
   const [overUnderMessage, setOverUnderMessage] = useState('')
   const [overUnderPenalty, setOverUnderPenalty] = useState<number | null>(null)
+  const [overUnderActivePlayerId, setOverUnderActivePlayerId] = useState<string | null>(null)
   const [aceMode, setAceMode] = useState<'low' | 'high' | 'both'>('both')
   const [isLoading, setIsLoading] = useState(true)
   const [isLoginOpen, setIsLoginOpen] = useState(false)
@@ -219,6 +220,7 @@ function App() {
         setOverUnderDeck(stateData.over_under_deck || [])
         setOverUnderMessage(stateData.over_under_message)
         setOverUnderPenalty(stateData.over_under_penalty)
+        setOverUnderActivePlayerId(stateData.over_under_active_player_id)
         setAceMode(stateData.ace_mode)
       } catch (error) {
         console.error('Error loading data:', error)
@@ -270,6 +272,7 @@ function App() {
       setOverUnderDeck(stateData.over_under_deck || [])
       setOverUnderMessage(stateData.over_under_message)
       setOverUnderPenalty(stateData.over_under_penalty)
+      setOverUnderActivePlayerId(stateData.over_under_active_player_id)
       setAceMode(stateData.ace_mode)
     })
 
@@ -814,6 +817,35 @@ function App() {
     }
   }
 
+  const handleActivePlayerChange = async (playerId: string) => {
+    const newPlayerId = playerId || null
+    setOverUnderActivePlayerId(newPlayerId)
+    try {
+      await db.updateCrawlState({ over_under_active_player_id: newPlayerId })
+    } catch (error) {
+      console.error('Error updating active player:', error)
+    }
+  }
+
+  const handlePassToNextPlayer = async () => {
+    if (!overUnderActivePlayerId) return
+
+    const currentIndex = participants.findIndex(p => p.id === overUnderActivePlayerId)
+    if (currentIndex === -1) return
+
+    const nextIndex = (currentIndex + 1) % participants.length
+    const nextPlayer = participants[nextIndex]
+
+    if (nextPlayer) {
+      setOverUnderActivePlayerId(nextPlayer.id)
+      try {
+        await db.updateCrawlState({ over_under_active_player_id: nextPlayer.id })
+      } catch (error) {
+        console.error('Error passing to next player:', error)
+      }
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="app">
@@ -1236,6 +1268,21 @@ function App() {
             <div className="game-section-header">
               <h2 className="game-section-title">🎲 Drukspil</h2>
             </div>
+            <div className="game-player-select">
+              <label>Aktiv spiller:</label>
+              <select
+                value={overUnderActivePlayerId || ''}
+                onChange={(event) => handleActivePlayerChange(event.target.value)}
+              >
+                <option value="">Vælg spiller</option>
+                {participants.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="panel-header">
               <div>
                 <h2>Over eller under</h2>
@@ -1296,9 +1343,26 @@ function App() {
                     <strong>{overUnderProgress}</strong>
                   </div>
                   <div className="guess-buttons">
-                    <button onClick={() => handleOverUnderGuess('over')}>Over</button>
-                    <button onClick={() => handleOverUnderGuess('under')}>Under</button>
+                    <button
+                      onClick={() => handleOverUnderGuess('over')}
+                      disabled={overUnderActivePlayerId !== null && overUnderActivePlayerId !== currentUserId}
+                    >
+                      Over
+                    </button>
+                    <button
+                      onClick={() => handleOverUnderGuess('under')}
+                      disabled={overUnderActivePlayerId !== null && overUnderActivePlayerId !== currentUserId}
+                    >
+                      Under
+                    </button>
                   </div>
+                  {overUnderActivePlayerId && overUnderActivePlayerId === currentUserId && (
+                    <div className="pass-control">
+                      <button className="ghost small" onClick={handlePassToNextPlayer}>
+                        Send videre til næste
+                      </button>
+                    </div>
+                  )}
                   <div className="game-feedback">
                     <strong>{overUnderMessage}</strong>
                     {overUnderPenalty !== null && (
