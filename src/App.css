@@ -752,7 +752,8 @@ button.ghost {
 }
 
 .route-list li.done {
-  opacity: 0.65;
+  opacity: 0.3;
+  filter: saturate(0.4);
 }
 
 .route-list li.active {
