@@ -990,6 +990,25 @@ button.ghost {
   }
 }
 
+.game-section-header {
+  background: linear-gradient(135deg, rgba(191, 166, 98, 0.25), rgba(156, 170, 138, 0.2));
+  border: 1px solid rgba(191, 166, 98, 0.4);
+  border-radius: 14px;
+  padding: 1rem 1.5rem;
+  margin: -1rem -1rem 1.5rem -1rem;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.game-section-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f3f0db;
+  text-shadow: 0 0 15px rgba(247, 218, 134, 0.4);
+  letter-spacing: 0.05em;
+}
+
 .game-panel .panel-header {
   align-items: flex-start;
 }

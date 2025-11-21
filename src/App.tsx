@@ -1237,11 +1237,14 @@ function App() {
           </div>
 
           <section className="panel span-2 game-panel">
+            <div className="game-section-header">
+              <h2 className="game-section-title">🎲 Drukspil</h2>
+            </div>
             <div className="panel-header">
               <div>
                 <h2>Over eller under</h2>
                 <p className="panel-sub">
-                  Gæt næste kort. {OVER_UNDER_TARGET} rigtige i træk giver “send videre”. Joker er altid
+                  Gæt næste kort. {OVER_UNDER_TARGET} rigtige i træk giver "send videre". Joker er altid
                   højest/lavest afhængigt af dit gæt.
                 </p>
               </div>
