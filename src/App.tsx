@@ -1161,6 +1161,19 @@ function App() {
                   </p>
                 )}
                   <div className="timer-controls">
+                    {!activeStopId && routeStops.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const firstStop = routeStops[0];
+                          if (firstStop) {
+                            updateActiveStop(firstStop.id, true);
+                          }
+                        }}
+                        className="primary"
+                      >
+                        🚀 Start ruten
+                      </button>
+                    )}
                     <button onClick={() => startTimer(1)} disabled={!adminUnlocked}>
                       1 min
                     </button>
