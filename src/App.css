@@ -86,8 +86,8 @@
 
 .retro-combo {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0;
+  flex-direction: column;
+  gap: 1rem;
   background: rgba(13, 20, 14, 0.9);
   border: 1px solid rgba(191, 166, 98, 0.35);
   border-radius: 18px;
@@ -96,8 +96,6 @@
 }
 
 .retro-card {
-  flex: 1;
-  min-width: 200px;
   padding: 0.5rem 1rem;
 }
 
