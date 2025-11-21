@@ -2,13 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './App.css'
 import { db } from './lib/database'
-import type { Participant, DrinkEntry, RouteStop } from './lib/database'
+import type { RouteStop } from './lib/database'
 
-type LocalParticipant = {
+type Participant = {
   id: string
   name: string
   beers: number
   createdAt: number
+}
+
+type DrinkEntry = {
+  id: string
+  participantId: string
+  timestamp: number
 }
 
 type CardSuit = 'hearts' | 'diamonds' | 'clubs' | 'spades' | 'joker'
@@ -40,11 +46,6 @@ const ADMIN_CODE = 'snag'
 const OVER_UNDER_TARGET = 3
 const MOOD_MAX = 100
 
-
-const createId = () =>
-  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2, 10)
 
 const formatTime = (timestamp: number) =>
   new Date(timestamp).toLocaleTimeString('da-DK', {
@@ -107,7 +108,7 @@ const findNextIncomplete = (stops: RouteStop[], startIndex = -1) => {
 }
 
 function App() {
-  const [participants, setParticipants] = useState<LocalParticipant[]>([])
+  const [participants, setParticipants] = useState<Participant[]>([])
   const [routeStops, setRouteStops] = useState<RouteStop[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [nameInput, setNameInput] = useState('')
@@ -903,7 +904,6 @@ function App() {
                   {nextStop ? `Næste sted: ${nextStop.name}` : 'Alle stop gennemført'}
                 </small>
               </div>
-              <div className="retro-divider" aria-hidden="true" />
               <div className="retro-card">
                 <p>Øller drukket i dag</p>
                 <div className="retro-value">
@@ -1159,7 +1159,7 @@ function App() {
                     <button onClick={() => extendTimer(5)} disabled={!adminUnlocked}>
                       +5 min
                     </button>
-                  <button className="ghost" onClick={resetTimer} disabled={!adminUnlocked}>
+                  <button className="ghost" onClick={() => resetTimer()} disabled={!adminUnlocked}>
                     Afslut sted
                   </button>
                   </div>

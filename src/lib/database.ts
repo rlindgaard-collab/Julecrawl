@@ -22,7 +22,24 @@ export type RouteStop = {
   completed: boolean
 }
 
-export type Card = { rank: string; suit: string }
+type CardSuit = 'hearts' | 'diamonds' | 'clubs' | 'spades' | 'joker'
+type CardRank =
+  | 'A'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | '6'
+  | '7'
+  | '8'
+  | '9'
+  | '10'
+  | 'J'
+  | 'Q'
+  | 'K'
+  | 'Joker'
+
+export type Card = { rank: CardRank; suit: CardSuit }
 
 export type CrawlState = {
   id: string
