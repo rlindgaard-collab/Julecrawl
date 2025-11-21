@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import './App.css'
 import { db } from './lib/database'
 import type { RouteStop } from './lib/database'
@@ -136,6 +137,7 @@ function App() {
   const [adminUnlocked, setAdminUnlocked] = useState(false)
   const [adminPrompt, setAdminPrompt] = useState('')
   const [showAdminPrompt, setShowAdminPrompt] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const heroFeedbackTimeout = useRef<number | null>(null)
   const holdAnimationFrame = useRef<number | null>(null)
   const holdStartTimestamp = useRef<number | null>(null)
@@ -1095,6 +1097,18 @@ function App() {
               </ol>
             </section>
 
+            <section className="panel">
+              <h2>Inviter makkere</h2>
+              <p className="panel-sub">Få flere med på holdet.</p>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => setShowInviteModal(true)}
+              >
+                Vis QR-kode
+              </button>
+            </section>
+
             <section className="panel span-2">
               <div className="panel-header">
                 <h2>Juleruten</h2>
@@ -1382,6 +1396,36 @@ function App() {
           </section>
         </div>
       </div>
+
+      {showInviteModal && (
+        <div className="modal-overlay" onClick={() => setShowInviteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Inviter makkere</h2>
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => setShowInviteModal(false)}
+                aria-label="Luk"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>Scan QR-koden for at deltage i crawlen:</p>
+              <div className="qr-container">
+                <QRCodeSVG
+                  value="https://julecrawl.bolt.host"
+                  size={256}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+              <p className="muted small">https://julecrawl.bolt.host</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
