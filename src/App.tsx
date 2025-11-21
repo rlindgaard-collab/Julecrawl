@@ -615,16 +615,6 @@ function App() {
     joker: '🃏',
   }
 
-  const drawCard = () => {
-    let deck = overUnderDeck
-    if (!deck.length) {
-      deck = shuffleDeck(createDeck())
-    }
-    const [next, ...rest] = deck
-    setOverUnderDeck(rest)
-    return next ?? null
-  }
-
   const resetOverUnder = async () => {
     const fresh = shuffleDeck(createDeck())
     const [first, ...rest] = fresh
@@ -655,8 +645,14 @@ function App() {
       return
     }
 
-    const nextCard = drawCard()
+    let deck = overUnderDeck
+    if (!deck.length) {
+      deck = shuffleDeck(createDeck())
+    }
+    const [nextCard, ...remainingDeck] = deck
     if (!nextCard) return
+
+    setOverUnderDeck(remainingDeck)
 
     const prevStreak = overUnderStreak
     const currentValue = getCardValue(overUnderCurrent, direction)
@@ -694,7 +690,7 @@ function App() {
 
     try {
       await db.updateCrawlState({
-        over_under_deck: overUnderDeck,
+        over_under_deck: remainingDeck,
         over_under_current_card: nextCard,
         over_under_last_card: nextCard,
         over_under_streak: newStreak,
