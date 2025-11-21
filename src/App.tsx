@@ -1,26 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './App.css'
+import { db } from './lib/database'
+import type { Participant, DrinkEntry, RouteStop } from './lib/database'
 
-type Participant = {
+type LocalParticipant = {
   id: string
   name: string
   beers: number
   createdAt: number
-}
-
-type DrinkEntry = {
-  id: string
-  participantId: string
-  timestamp: number
-}
-
-type RouteStop = {
-  id: string
-  name: string
-  address: string
-  note?: string
-  completed: boolean
 }
 
 type CardSuit = 'hearts' | 'diamonds' | 'clubs' | 'spades' | 'joker'
@@ -41,7 +29,6 @@ type CardRank =
   | 'Joker'
 type Card = { rank: CardRank; suit: CardSuit }
 
-const demoParticipants: Participant[] = []
 
 type HeroButtonId = 'beer' | 'arrival' | 'round' | 'reset'
 type HoldStyle = CSSProperties & { '--hold-progress'?: number }
@@ -53,57 +40,6 @@ const ADMIN_CODE = 'snag'
 const OVER_UNDER_TARGET = 3
 const MOOD_MAX = 100
 
-const demoRoute: RouteStop[] = [
-  {
-    id: 's1',
-    name: 'Start',
-    address: 'Lektorvej 99',
-    note: 'Mødes 13.00 - frokost',
-    completed: false,
-  },
-  {
-    id: 's2',
-    name: 'John Bull',
-    address: 'Østerågade 20',
-    note: 'Stamsted for broder Ras – måske hænger der et billede af ham',
-    completed: false,
-  },
-  {
-    id: 's3',
-    name: 'Øl & Venner',
-    address: 'Sankt Hans Torv 3',
-    note: 'Quiz kl. 14:30',
-    completed: false,
-  },
-  {
-    id: 's4',
-    name: 'Kælderkroen',
-    address: 'Falkoner Allé 52',
-    note: 'Bordfodbold kl. 15:30',
-    completed: false,
-  },
-  {
-    id: 's5',
-    name: 'Bodega Blå',
-    address: 'Blågårdsgade 42',
-    note: 'DJ fra kl. 17',
-    completed: false,
-  },
-  {
-    id: 's6',
-    name: 'Guldbaren',
-    address: 'Guldbergsgade 27',
-    note: '2-for-1 kl. 17:45',
-    completed: false,
-  },
-  {
-    id: 's7',
-    name: 'Natfinalen',
-    address: 'Rantzausgade 10',
-    note: 'Sidste runde 19:30',
-    completed: false,
-  },
-]
 
 const createId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -171,18 +107,14 @@ const findNextIncomplete = (stops: RouteStop[], startIndex = -1) => {
 }
 
 function App() {
-  const [participants, setParticipants] = useState<Participant[]>(demoParticipants)
-  const [routeStops, setRouteStops] = useState<RouteStop[]>(demoRoute)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(
-    demoParticipants[0]?.id ?? null,
-  )
+  const [participants, setParticipants] = useState<LocalParticipant[]>([])
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [nameInput, setNameInput] = useState('')
   const [drinkLog, setDrinkLog] = useState<DrinkEntry[]>([])
   const [timerTarget, setTimerTarget] = useState<number | null>(null)
   const [timerDuration, setTimerDuration] = useState(0)
-  const [activeStopId, setActiveStopId] = useState<string | null>(
-    demoRoute[0]?.id ?? null,
-  )
+  const [activeStopId, setActiveStopId] = useState<string | null>(null)
   const [moodScore, setMoodScore] = useState(0)
   const [arrivalCooldownUntil, setArrivalCooldownUntil] = useState<number | null>(null)
   const [roundHistory, setRoundHistory] = useState<string[]>([])
@@ -194,6 +126,7 @@ function App() {
   const [overUnderMessage, setOverUnderMessage] = useState('')
   const [overUnderPenalty, setOverUnderPenalty] = useState<number | null>(null)
   const [aceMode, setAceMode] = useState<'low' | 'high' | 'both'>('both')
+  const [isLoading, setIsLoading] = useState(true)
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [pressedButton, setPressedButton] = useState<HeroButtonId | null>(null)
   const [holdTarget, setHoldTarget] = useState<HeroButtonId | null>(null)
@@ -243,6 +176,110 @@ function App() {
     [participants],
   )
 
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const [participantsData, drinkLogData, routeData, stateData] = await Promise.all([
+          db.getParticipants(),
+          db.getDrinkLog(),
+          db.getRouteStops(),
+          db.getCrawlState(),
+        ])
+
+        setParticipants(
+          participantsData.map((p) => ({
+            id: p.id,
+            name: p.name,
+            beers: p.beers,
+            createdAt: new Date(p.created_at).getTime(),
+          }))
+        )
+        setDrinkLog(
+          drinkLogData.map((d) => ({
+            id: d.id,
+            participantId: d.participant_id,
+            timestamp: new Date(d.timestamp).getTime(),
+          }))
+        )
+        setRouteStops(routeData)
+
+        setTimerTarget(stateData.timer_target ? new Date(stateData.timer_target).getTime() : null)
+        setTimerDuration(stateData.timer_duration)
+        setActiveStopId(stateData.active_stop_id)
+        setMoodScore(stateData.mood_score)
+        setArrivalCooldownUntil(stateData.arrival_cooldown_until ? new Date(stateData.arrival_cooldown_until).getTime() : null)
+        setRoundCooldownUntil(stateData.round_cooldown_until ? new Date(stateData.round_cooldown_until).getTime() : null)
+        if (stateData.last_round_winner_id) {
+          setRoundHistory([stateData.last_round_winner_id])
+        }
+        setOverUnderStreak(stateData.over_under_streak)
+        setOverUnderCurrent(stateData.over_under_current_card)
+        setOverUnderLast(stateData.over_under_last_card)
+        setOverUnderDeck(stateData.over_under_deck || [])
+        setOverUnderMessage(stateData.over_under_message)
+        setOverUnderPenalty(stateData.over_under_penalty)
+        setAceMode(stateData.ace_mode)
+      } catch (error) {
+        console.error('Error loading data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadInitialData()
+
+    const unsubParticipants = db.subscribeToParticipants((participantsData) => {
+      setParticipants(
+        participantsData.map((p) => ({
+          id: p.id,
+          name: p.name,
+          beers: p.beers,
+          createdAt: new Date(p.created_at).getTime(),
+        }))
+      )
+    })
+
+    const unsubDrinkLog = db.subscribeToDrinkLog((drinkLogData) => {
+      setDrinkLog(
+        drinkLogData.map((d) => ({
+          id: d.id,
+          participantId: d.participant_id,
+          timestamp: new Date(d.timestamp).getTime(),
+        }))
+      )
+    })
+
+    const unsubRouteStops = db.subscribeToRouteStops((routeData) => {
+      setRouteStops(routeData)
+    })
+
+    const unsubCrawlState = db.subscribeToCrawlState((stateData) => {
+      setTimerTarget(stateData.timer_target ? new Date(stateData.timer_target).getTime() : null)
+      setTimerDuration(stateData.timer_duration)
+      setActiveStopId(stateData.active_stop_id)
+      setMoodScore(stateData.mood_score)
+      setArrivalCooldownUntil(stateData.arrival_cooldown_until ? new Date(stateData.arrival_cooldown_until).getTime() : null)
+      setRoundCooldownUntil(stateData.round_cooldown_until ? new Date(stateData.round_cooldown_until).getTime() : null)
+      if (stateData.last_round_winner_id) {
+        setRoundHistory([stateData.last_round_winner_id])
+      }
+      setOverUnderStreak(stateData.over_under_streak)
+      setOverUnderCurrent(stateData.over_under_current_card)
+      setOverUnderLast(stateData.over_under_last_card)
+      setOverUnderDeck(stateData.over_under_deck || [])
+      setOverUnderMessage(stateData.over_under_message)
+      setOverUnderPenalty(stateData.over_under_penalty)
+      setAceMode(stateData.ace_mode)
+    })
+
+    return () => {
+      unsubParticipants()
+      unsubDrinkLog()
+      unsubRouteStops()
+      unsubCrawlState()
+    }
+  }, [])
+
   const moodLevel = useMemo(() => {
     if (moodScore >= 100) return 6
     if (moodScore >= 80) return 5
@@ -260,7 +297,7 @@ function App() {
     [participants, lastRoundWinnerId],
   )
 
-  const handleLogin = (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const trimmed = nameInput.trim()
     if (!trimmed) return
@@ -272,89 +309,121 @@ function App() {
     if (existing) {
       setCurrentUserId(existing.id)
     } else {
-      const newParticipant: Participant = {
-        id: createId(),
-        name: trimmed,
-        beers: 0,
-        createdAt: Date.now(),
+      try {
+        const newParticipant = await db.createParticipant(trimmed)
+        setCurrentUserId(newParticipant.id)
+      } catch (error) {
+        console.error('Error creating participant:', error)
       }
-      setParticipants((prev) => [...prev, newParticipant])
-      setCurrentUserId(newParticipant.id)
     }
 
     setNameInput('')
     setIsLoginOpen(false)
   }
 
-  const logDrink = () => {
+  const logDrink = async () => {
     if (!currentUser) return
 
-    setParticipants((prev) =>
-      prev.map((participant) =>
-        participant.id === currentUser.id
-          ? { ...participant, beers: participant.beers + 1 }
-          : participant,
-      ),
-    )
-
-    setDrinkLog((prev) => [
-      ...prev,
-      { id: createId(), participantId: currentUser.id, timestamp: Date.now() },
-    ])
-    bumpMood(1)
-  }
-
-  const markStopComplete = (stopId: string) => {
-    const isActive = stopId === activeStopId
-
-    setRouteStops((prev) =>
-      prev.map((stop) =>
-        stop.id === stopId ? { ...stop, completed: !stop.completed } : stop,
-      ),
-    )
-
-    if (isActive) {
-      resetTimer()
+    try {
+      await db.logDrink(currentUser.id)
+      await db.updateParticipantBeers(currentUser.id, currentUser.beers + 1)
+      await bumpMood(1)
+    } catch (error) {
+      console.error('Error logging drink:', error)
     }
   }
 
-  const startTimer = (minutes: number, override = false) => {
-    if (!adminUnlocked && !override) return
-    const duration = minutes * 60 * 1000
-    setTimerDuration(duration)
-    setTimerTarget(Date.now() + duration)
+  const markStopComplete = async (stopId: string) => {
+    const isActive = stopId === activeStopId
+    const stop = routeStops.find(s => s.id === stopId)
+    if (!stop) return
+
+    try {
+      await db.updateRouteStop(stopId, { completed: !stop.completed })
+
+      if (isActive) {
+        await resetTimer()
+      }
+    } catch (error) {
+      console.error('Error updating stop:', error)
+    }
   }
 
-  const extendTimer = (minutes: number, override = false) => {
+  const startTimer = async (minutes: number, override = false) => {
+    if (!adminUnlocked && !override) return
+    const duration = minutes * 60 * 1000
+    const target = Date.now() + duration
+    setTimerDuration(duration)
+    setTimerTarget(target)
+
+    try {
+      await db.updateCrawlState({
+        timer_duration: duration,
+        timer_target: new Date(target).toISOString(),
+      })
+    } catch (error) {
+      console.error('Error starting timer:', error)
+    }
+  }
+
+  const extendTimer = async (minutes: number, override = false) => {
     if (!adminUnlocked && !override) return
     if (!timerTarget) {
-      startTimer(minutes, override)
+      await startTimer(minutes, override)
       return
     }
 
     const additional = minutes * 60 * 1000
-    setTimerDuration((prev) => prev + additional)
-    setTimerTarget((prev) => (prev ? prev + additional : Date.now() + additional))
+    const newDuration = timerDuration + additional
+    const newTarget = timerTarget + additional
+
+    setTimerDuration(newDuration)
+    setTimerTarget(newTarget)
+
+    try {
+      await db.updateCrawlState({
+        timer_duration: newDuration,
+        timer_target: new Date(newTarget).toISOString(),
+      })
+    } catch (error) {
+      console.error('Error extending timer:', error)
+    }
   }
 
-  const resetTimer = (override = false) => {
+  const resetTimer = async (override = false) => {
     if (!adminUnlocked && !override) return
     setTimerTarget(null)
     setTimerDuration(0)
+
+    try {
+      await db.updateCrawlState({
+        timer_target: null,
+        timer_duration: 0,
+      })
+    } catch (error) {
+      console.error('Error resetting timer:', error)
+    }
   }
 
-  const updateActiveStop = (stopId: string | null, restartTimer: boolean) => {
+  const updateActiveStop = async (stopId: string | null, restartTimer: boolean) => {
     setActiveStopId(stopId)
-    if (!stopId) {
-      resetTimer(true)
-      return
-    }
-    if (restartTimer) {
-      startTimer(30, true)
+
+    try {
+      await db.updateCrawlState({ active_stop_id: stopId })
+
+      if (!stopId) {
+        await resetTimer(true)
+        return
+      }
+      if (restartTimer) {
+        await startTimer(30, true)
+      }
+    } catch (error) {
+      console.error('Error updating active stop:', error)
     }
   }
 
-  const pickNextRound = () => {
+  const pickNextRound = async () => {
     if (!participants.length) return
 
     const now = Date.now()
@@ -373,8 +442,18 @@ function App() {
     const chosen = pool[Math.floor(Math.random() * pool.length)]
 
     setRoundHistory((prev) => [...prev, chosen.id])
-    setRoundCooldownUntil(now + ROUND_COOLDOWN_MS)
-    bumpMood(5)
+    const cooldownTime = now + ROUND_COOLDOWN_MS
+    setRoundCooldownUntil(cooldownTime)
+
+    try {
+      await db.updateCrawlState({
+        last_round_winner_id: chosen.id,
+        round_cooldown_until: new Date(cooldownTime).toISOString(),
+      })
+      await bumpMood(5)
+    } catch (error) {
+      console.error('Error picking next round:', error)
+    }
   }
 
   useEffect(() => {
@@ -415,7 +494,7 @@ function App() {
     }
   }, [moodScore])
 
-  const handleArrival = () => {
+  const handleArrival = async () => {
     if (isTimerRunning) return
     const now = Date.now()
     if (arrivalCooldownUntil && arrivalCooldownUntil > now) return
@@ -424,43 +503,70 @@ function App() {
 
     const upcoming = nextStop
 
-    setRouteStops((prev) =>
-      prev.map((stop) =>
-        stop.id === activeStop.id ? { ...stop, completed: true } : stop,
-      ),
-    )
+    try {
+      await db.updateRouteStop(activeStop.id, { completed: true })
 
-    if (upcoming) {
-      updateActiveStop(upcoming.id, true)
-    } else {
-      updateActiveStop(null, false)
+      if (upcoming) {
+        await updateActiveStop(upcoming.id, true)
+      } else {
+        await updateActiveStop(null, false)
+      }
+
+      const cooldownTime = now + ARRIVAL_COOLDOWN_MS
+      setArrivalCooldownUntil(cooldownTime)
+
+      await db.updateCrawlState({
+        arrival_cooldown_until: new Date(cooldownTime).toISOString(),
+      })
+      await bumpMood(5)
+    } catch (error) {
+      console.error('Error handling arrival:', error)
     }
-
-    bumpMood(5)
-    setArrivalCooldownUntil(now + ARRIVAL_COOLDOWN_MS)
   }
 
-  const resetRanking = () => {
-    setParticipants((prev) => prev.map((participant) => ({ ...participant, beers: 0 })))
-    setDrinkLog([])
+  const resetRanking = async () => {
+    try {
+      await db.clearDrinkLog()
+      for (const p of participants) {
+        await db.updateParticipantBeers(p.id, 0)
+      }
+    } catch (error) {
+      console.error('Error resetting ranking:', error)
+    }
   }
 
-  const deleteParticipant = (participantId: string) => {
+  const deleteParticipant = async (participantId: string) => {
     if (!adminUnlocked) return
-    setParticipants((prev) => prev.filter((participant) => participant.id !== participantId))
-    setDrinkLog((prev) => prev.filter((entry) => entry.participantId !== participantId))
-    setRoundHistory((prev) => prev.filter((id) => id !== participantId))
-    setCurrentUserId((prev) => (prev === participantId ? null : prev))
+    try {
+      await db.deleteParticipant(participantId)
+      setRoundHistory((prev) => prev.filter((id) => id !== participantId))
+      setCurrentUserId((prev) => (prev === participantId ? null : prev))
+    } catch (error) {
+      console.error('Error deleting participant:', error)
+    }
   }
 
-  const bumpMood = (amount: number) => {
-    setMoodScore((prev) => Math.min(prev + amount, MOOD_MAX))
+  const bumpMood = async (amount: number) => {
+    const newScore = Math.min(moodScore + amount, MOOD_MAX)
+    setMoodScore(newScore)
+
+    try {
+      await db.updateCrawlState({ mood_score: newScore })
+    } catch (error) {
+      console.error('Error updating mood:', error)
+    }
   }
 
-  const setMood = (value: number) => {
+  const setMood = async (value: number) => {
     if (!adminUnlocked) return
     const clamped = Math.min(Math.max(value, 0), MOOD_MAX)
     setMoodScore(clamped)
+
+    try {
+      await db.updateCrawlState({ mood_score: clamped })
+    } catch (error) {
+      console.error('Error setting mood:', error)
+    }
   }
 
   const getCardValue = (card: Card, direction: 'over' | 'under') => {
@@ -504,7 +610,7 @@ function App() {
     return next ?? null
   }
 
-  const resetOverUnder = () => {
+  const resetOverUnder = async () => {
     const fresh = shuffleDeck(createDeck())
     const [first, ...rest] = fresh
     setOverUnderDeck(rest)
@@ -513,11 +619,24 @@ function App() {
     setOverUnderStreak(0)
     setOverUnderMessage('Gæt over eller under for næste kort')
     setOverUnderPenalty(null)
+
+    try {
+      await db.updateCrawlState({
+        over_under_deck: rest,
+        over_under_current_card: first ?? null,
+        over_under_last_card: null,
+        over_under_streak: 0,
+        over_under_message: 'Gæt over eller under for næste kort',
+        over_under_penalty: null,
+      })
+    } catch (error) {
+      console.error('Error resetting over/under:', error)
+    }
   }
 
-  const handleOverUnderGuess = (direction: 'over' | 'under') => {
+  const handleOverUnderGuess = async (direction: 'over' | 'under') => {
     if (!overUnderCurrent) {
-      resetOverUnder()
+      await resetOverUnder()
       return
     }
 
@@ -531,26 +650,45 @@ function App() {
       direction === 'over' ? nextValue > currentValue : direction === 'under' ? nextValue < currentValue : false
 
     setOverUnderLast(nextCard)
+    setOverUnderCurrent(nextCard)
+
+    let newStreak = prevStreak
+    let newMessage = ''
+    let newPenalty = overUnderPenalty
 
     if (correct) {
+      newPenalty = null
+      newStreak = prevStreak + 1
+      if (newStreak >= OVER_UNDER_TARGET) {
+        newMessage = '3 rigtige – sendt videre! Start forfra.'
+        newStreak = 0
+      } else {
+        newMessage = `Rigtigt! ${newStreak}/${OVER_UNDER_TARGET}`
+      }
       setOverUnderPenalty(null)
-      setOverUnderStreak((prev) => {
-        const updated = prev + 1
-        if (updated >= OVER_UNDER_TARGET) {
-          setOverUnderMessage('3 rigtige – sendt videre! Start forfra.')
-          return 0
-        }
-        setOverUnderMessage(`Rigtigt! ${updated}/${OVER_UNDER_TARGET}`)
-        return updated
-      })
+      setOverUnderStreak(newStreak)
+      setOverUnderMessage(newMessage)
     } else {
-      const penalty = prevStreak + 1
-      setOverUnderPenalty(penalty)
+      newPenalty = prevStreak + 1
+      newStreak = 0
+      newMessage = `Forkert – ${newPenalty} slurk${newPenalty === 1 ? '' : 'e'}`
+      setOverUnderPenalty(newPenalty)
       setOverUnderStreak(0)
-      setOverUnderMessage(`Forkert – ${penalty} slurk${penalty === 1 ? '' : 'e'}`)
+      setOverUnderMessage(newMessage)
     }
 
-    setOverUnderCurrent(nextCard)
+    try {
+      await db.updateCrawlState({
+        over_under_deck: overUnderDeck,
+        over_under_current_card: nextCard,
+        over_under_last_card: nextCard,
+        over_under_streak: newStreak,
+        over_under_message: newMessage,
+        over_under_penalty: newPenalty,
+      })
+    } catch (error) {
+      console.error('Error updating over/under game:', error)
+    }
   }
 
   const triggerHeroAction = (id: HeroButtonId, action: () => void) => {
@@ -636,8 +774,8 @@ function App() {
     return ''
   }
 
-  const handleSetActiveStop = (stopId: string) => {
-    updateActiveStop(stopId, true)
+  const handleSetActiveStop = async (stopId: string) => {
+    await updateActiveStop(stopId, true)
   }
 
   const handleAdminUnlock = (event: FormEvent<HTMLFormElement>) => {
@@ -654,6 +792,27 @@ function App() {
 
   const preventContextMenu = (event: React.MouseEvent) => {
     event.preventDefault()
+  }
+
+  const handleAceModeChange = async (newMode: 'low' | 'high' | 'both') => {
+    setAceMode(newMode)
+    try {
+      await db.updateCrawlState({ ace_mode: newMode })
+    } catch (error) {
+      console.error('Error updating ace mode:', error)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="app">
+        <div className="page-title">
+          <div className="title-login">
+            <span>Indlæser...</span>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -1064,7 +1223,7 @@ function App() {
                   Es:
                   <select
                     value={aceMode}
-                    onChange={(event) => setAceMode(event.target.value as typeof aceMode)}
+                    onChange={(event) => handleAceModeChange(event.target.value as typeof aceMode)}
                   >
                     <option value="both">Lav/ høj</option>
                     <option value="high">Kun høj</option>
