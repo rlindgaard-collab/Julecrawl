@@ -325,12 +325,26 @@ function App() {
   const logDrink = async () => {
     if (!currentUser) return
 
+    const optimisticDrink = {
+      id: crypto.randomUUID(),
+      participantId: currentUser.id,
+      timestamp: Date.now(),
+    }
+    setDrinkLog((prev) => [...prev, optimisticDrink])
+    setParticipants((prev) =>
+      prev.map((p) => (p.id === currentUser.id ? { ...p, beers: p.beers + 1 } : p))
+    )
+
     try {
       await db.logDrink(currentUser.id)
       await db.updateParticipantBeers(currentUser.id, currentUser.beers + 1)
       await bumpMood(1)
     } catch (error) {
       console.error('Error logging drink:', error)
+      setDrinkLog((prev) => prev.filter((d) => d.id !== optimisticDrink.id))
+      setParticipants((prev) =>
+        prev.map((p) => (p.id === currentUser.id ? { ...p, beers: p.beers - 1 } : p))
+      )
     }
   }
 
