@@ -3,7 +3,7 @@ import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from
 import { QRCodeSVG } from 'qrcode.react'
 import './App.css'
 import { db } from './lib/database'
-import type { RouteStop, BeerPongGame } from './lib/database'
+import type { RouteStop, BeerPongGame, PongGame } from './lib/database'
 
 type Participant = {
   id: string
@@ -141,6 +141,9 @@ function App() {
   const [beerPongGame, setBeerPongGame] = useState<BeerPongGame | null>(null)
   const [beerPongPlayer1, setBeerPongPlayer1] = useState<string>('')
   const [beerPongPlayer2, setBeerPongPlayer2] = useState<string>('')
+  const [pongGame, setPongGame] = useState<PongGame | null>(null)
+  const [pongPlayer1, setPongPlayer1] = useState<string>('')
+  const [pongPlayer2, setPongPlayer2] = useState<string>('')
   const heroFeedbackTimeout = useRef<number | null>(null)
   const holdAnimationFrame = useRef<number | null>(null)
   const holdStartTimestamp = useRef<number | null>(null)
@@ -297,12 +300,29 @@ function App() {
       setBeerPongGame(activeGame)
     })
 
+    const loadPongGame = async () => {
+      try {
+        const activeGame = await db.getActivePongGame()
+        setPongGame(activeGame)
+      } catch (error) {
+        console.error('Error loading pong game:', error)
+      }
+    }
+
+    loadPongGame()
+
+    const unsubPongGames = db.subscribeToPongGames(async () => {
+      const activeGame = await db.getActivePongGame()
+      setPongGame(activeGame)
+    })
+
     return () => {
       unsubParticipants()
       unsubDrinkLog()
       unsubRouteStops()
       unsubCrawlState()
       unsubBeerPongGames()
+      unsubPongGames()
     }
   }, [])
 
@@ -931,6 +951,126 @@ function App() {
       await db.finishBeerPongGame(beerPongGame.id, winnerId)
     } catch (error) {
       console.error('Error ending beer pong game:', error)
+    }
+  }
+
+  const startPongGame = async () => {
+    if (!pongPlayer1 || !pongPlayer2 || pongPlayer1 === pongPlayer2) {
+      return
+    }
+
+    try {
+      const game = await db.createPongGame(pongPlayer1, pongPlayer2)
+      if (game) {
+        setPongPlayer1('')
+        setPongPlayer2('')
+        await bumpMood(5)
+      }
+    } catch (error) {
+      console.error('Error starting pong game:', error)
+    }
+  }
+
+  const endPongGame = async () => {
+    if (!pongGame) return
+
+    try {
+      const winnerId = pongGame.player1_score > pongGame.player2_score
+        ? pongGame.player1_id
+        : pongGame.player2_id
+      await db.finishPongGame(pongGame.id, winnerId)
+    } catch (error) {
+      console.error('Error ending pong game:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (!pongGame || pongGame.status !== 'active') return
+
+    const PADDLE_HEIGHT = 15
+    const WINNING_SCORE = 5
+
+    const gameLoop = setInterval(async () => {
+      try {
+        const game = await db.getActivePongGame()
+        if (!game) return
+
+        let { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score } = game
+
+        ball_x += ball_dx
+        ball_y += ball_dy
+
+        if (ball_y <= 0 || ball_y >= 100) {
+          ball_dy = -ball_dy
+          ball_y = Math.max(0, Math.min(100, ball_y))
+        }
+
+        if (ball_x <= 2) {
+          if (ball_y >= paddle1_y - PADDLE_HEIGHT / 2 && ball_y <= paddle1_y + PADDLE_HEIGHT / 2) {
+            ball_dx = Math.abs(ball_dx)
+            const hitPos = (ball_y - paddle1_y) / (PADDLE_HEIGHT / 2)
+            ball_dy += hitPos * 0.5
+          } else {
+            player2_score++
+            ball_x = 50
+            ball_y = 50
+            ball_dx = -1.5
+            ball_dy = Math.random() * 2 - 1
+            await bumpMood(3)
+          }
+        }
+
+        if (ball_x >= 98) {
+          if (ball_y >= paddle2_y - PADDLE_HEIGHT / 2 && ball_y <= paddle2_y + PADDLE_HEIGHT / 2) {
+            ball_dx = -Math.abs(ball_dx)
+            const hitPos = (ball_y - paddle2_y) / (PADDLE_HEIGHT / 2)
+            ball_dy += hitPos * 0.5
+          } else {
+            player1_score++
+            ball_x = 50
+            ball_y = 50
+            ball_dx = 1.5
+            ball_dy = Math.random() * 2 - 1
+            await bumpMood(3)
+          }
+        }
+
+        ball_dy = Math.max(-3, Math.min(3, ball_dy))
+
+        if (player1_score >= WINNING_SCORE || player2_score >= WINNING_SCORE) {
+          const winnerId = player1_score >= WINNING_SCORE ? game.player1_id : game.player2_id
+          await db.finishPongGame(game.id, winnerId)
+          await bumpMood(10)
+        } else {
+          await db.updatePongGame(game.id, {
+            ball_x,
+            ball_y,
+            ball_dx,
+            ball_dy,
+            paddle1_y,
+            paddle2_y,
+            player1_score,
+            player2_score
+          })
+        }
+      } catch (error) {
+        console.error('Error in pong game loop:', error)
+      }
+    }, 50)
+
+    return () => clearInterval(gameLoop)
+  }, [pongGame])
+
+  const movePaddle = async (player: 1 | 2, direction: 'up' | 'down') => {
+    if (!pongGame) return
+
+    const currentY = player === 1 ? pongGame.paddle1_y : pongGame.paddle2_y
+    const newY = direction === 'up' ? Math.max(10, currentY - 5) : Math.min(90, currentY + 5)
+
+    try {
+      await db.updatePongGame(pongGame.id, player === 1 ? { paddle1_y: newY } : { paddle2_y: newY })
+    } catch (error) {
+      console.error('Error moving paddle:', error)
     }
   }
 
@@ -1595,6 +1735,137 @@ function App() {
                         Afslut kamp
                       </button>
                     </div>
+                  </>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="panel span-2 game-panel">
+            <div className="game-section-header">
+              <h2 className="game-section-title">🎮 Classic Pong</h2>
+            </div>
+
+            {!pongGame ? (
+              <div className="beer-pong-setup">
+                <p className="panel-sub">Start et klassisk Pong spil mellem to spillere</p>
+                <div className="beer-pong-player-select">
+                  <div className="player-selector">
+                    <label>Spiller 1 (venstre):</label>
+                    <select
+                      value={pongPlayer1}
+                      onChange={(e) => setPongPlayer1(e.target.value)}
+                    >
+                      <option value="">Vælg spiller</option>
+                      {participants.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="vs-divider">VS</div>
+                  <div className="player-selector">
+                    <label>Spiller 2 (højre):</label>
+                    <select
+                      value={pongPlayer2}
+                      onChange={(e) => setPongPlayer2(e.target.value)}
+                    >
+                      <option value="">Vælg spiller</option>
+                      {participants.map((p) => (
+                        <option key={p.id} value={p.id} disabled={p.id === pongPlayer1}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <button
+                  className="primary"
+                  onClick={startPongGame}
+                  disabled={!pongPlayer1 || !pongPlayer2 || pongPlayer1 === pongPlayer2}
+                >
+                  Start spil
+                </button>
+              </div>
+            ) : (
+              <div className="beer-pong-active">
+                {pongGame.status === 'finished' ? (
+                  <div className="beer-pong-finished">
+                    <h3>🏆 Spil afsluttet!</h3>
+                    <p className="winner-announcement">
+                      Vinderen er: <strong>{participants.find(p => p.id === pongGame.winner_id)?.name}</strong>
+                    </p>
+                    <p className="final-score">
+                      {pongGame.player1_score} - {pongGame.player2_score}
+                    </p>
+                    <button className="primary" onClick={() => setPongGame(null)}>
+                      Start nyt spil
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="pong-game-area">
+                      <div className="pong-score-header">
+                        <div className="pong-player-info">
+                          <h3>{participants.find(p => p.id === pongGame.player1_id)?.name}</h3>
+                          <div className="pong-score">{pongGame.player1_score}</div>
+                        </div>
+                        <div className="pong-divider">-</div>
+                        <div className="pong-player-info">
+                          <h3>{participants.find(p => p.id === pongGame.player2_id)?.name}</h3>
+                          <div className="pong-score">{pongGame.player2_score}</div>
+                        </div>
+                      </div>
+
+                      <div className="pong-canvas">
+                        <div
+                          className="pong-paddle pong-paddle-left"
+                          style={{ top: `${pongGame.paddle1_y}%` }}
+                        />
+                        <div
+                          className="pong-ball"
+                          style={{ left: `${pongGame.ball_x}%`, top: `${pongGame.ball_y}%` }}
+                        />
+                        <div
+                          className="pong-paddle pong-paddle-right"
+                          style={{ top: `${pongGame.paddle2_y}%` }}
+                        />
+                        <div className="pong-center-line" />
+                      </div>
+
+                      <div className="pong-controls-grid">
+                        <div className="pong-control-section">
+                          <p className="pong-control-label">
+                            {participants.find(p => p.id === pongGame.player1_id)?.name}
+                          </p>
+                          <div className="pong-buttons">
+                            <button className="pong-btn" onClick={() => movePaddle(1, 'up')}>
+                              ▲
+                            </button>
+                            <button className="pong-btn" onClick={() => movePaddle(1, 'down')}>
+                              ▼
+                            </button>
+                          </div>
+                        </div>
+                        <div className="pong-control-section">
+                          <p className="pong-control-label">
+                            {participants.find(p => p.id === pongGame.player2_id)?.name}
+                          </p>
+                          <div className="pong-buttons">
+                            <button className="pong-btn" onClick={() => movePaddle(2, 'up')}>
+                              ▲
+                            </button>
+                            <button className="pong-btn" onClick={() => movePaddle(2, 'down')}>
+                              ▼
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <button className="ghost small" onClick={endPongGame}>
+                      Afslut spil
+                    </button>
                   </>
                 )}
               </div>
