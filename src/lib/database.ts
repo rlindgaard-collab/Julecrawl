@@ -61,6 +61,19 @@ export type CrawlState = {
   updated_at: string
 }
 
+export type BeerPongGame = {
+  id: string
+  player1_id: string
+  player2_id: string
+  player1_cups: number
+  player2_cups: number
+  current_turn: number
+  status: 'active' | 'finished'
+  winner_id: string | null
+  created_at: string
+  finished_at: string | null
+}
+
 const CRAWL_STATE_ID = '00000000-0000-0000-0000-000000000001'
 
 export const db = {
@@ -253,6 +266,87 @@ export const db = {
         async () => {
           const state = await db.getCrawlState()
           callback(state)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  },
+
+  async getBeerPongGames() {
+    const { data, error } = await supabase
+      .from('beer_pong_games')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data as BeerPongGame[]
+  },
+
+  async getActiveBeerPongGame() {
+    const { data, error } = await supabase
+      .from('beer_pong_games')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+    return data as BeerPongGame | null
+  },
+
+  async createBeerPongGame(player1Id: string, player2Id: string) {
+    const { data, error } = await supabase
+      .from('beer_pong_games')
+      .insert({
+        player1_id: player1Id,
+        player2_id: player2Id,
+        player1_cups: 6,
+        player2_cups: 6,
+        current_turn: 1,
+        status: 'active'
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as BeerPongGame
+  },
+
+  async updateBeerPongGame(gameId: string, updates: Partial<BeerPongGame>) {
+    const { error } = await supabase
+      .from('beer_pong_games')
+      .update(updates)
+      .eq('id', gameId)
+
+    if (error) throw error
+  },
+
+  async finishBeerPongGame(gameId: string, winnerId: string) {
+    const { error } = await supabase
+      .from('beer_pong_games')
+      .update({
+        status: 'finished',
+        winner_id: winnerId,
+        finished_at: new Date().toISOString()
+      })
+      .eq('id', gameId)
+
+    if (error) throw error
+  },
+
+  subscribeToBeerPongGames(callback: (games: BeerPongGame[]) => void) {
+    const channel = supabase
+      .channel('beer-pong-games-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'beer_pong_games' },
+        async () => {
+          const games = await db.getBeerPongGames()
+          callback(games)
         }
       )
       .subscribe()

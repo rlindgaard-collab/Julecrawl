@@ -3,7 +3,7 @@ import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from
 import { QRCodeSVG } from 'qrcode.react'
 import './App.css'
 import { db } from './lib/database'
-import type { RouteStop } from './lib/database'
+import type { RouteStop, BeerPongGame } from './lib/database'
 
 type Participant = {
   id: string
@@ -138,6 +138,9 @@ function App() {
   const [adminPrompt, setAdminPrompt] = useState('')
   const [showAdminPrompt, setShowAdminPrompt] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [beerPongGame, setBeerPongGame] = useState<BeerPongGame | null>(null)
+  const [beerPongPlayer1, setBeerPongPlayer1] = useState<string>('')
+  const [beerPongPlayer2, setBeerPongPlayer2] = useState<string>('')
   const heroFeedbackTimeout = useRef<number | null>(null)
   const holdAnimationFrame = useRef<number | null>(null)
   const holdStartTimestamp = useRef<number | null>(null)
@@ -278,11 +281,28 @@ function App() {
       setAceMode(stateData.ace_mode)
     })
 
+    const loadBeerPongGame = async () => {
+      try {
+        const activeGame = await db.getActiveBeerPongGame()
+        setBeerPongGame(activeGame)
+      } catch (error) {
+        console.error('Error loading beer pong game:', error)
+      }
+    }
+
+    loadBeerPongGame()
+
+    const unsubBeerPongGames = db.subscribeToBeerPongGames(async () => {
+      const activeGame = await db.getActiveBeerPongGame()
+      setBeerPongGame(activeGame)
+    })
+
     return () => {
       unsubParticipants()
       unsubDrinkLog()
       unsubRouteStops()
       unsubCrawlState()
+      unsubBeerPongGames()
     }
   }, [])
 
@@ -848,6 +868,70 @@ function App() {
     }
   }
 
+  const startBeerPongGame = async () => {
+    if (!beerPongPlayer1 || !beerPongPlayer2 || beerPongPlayer1 === beerPongPlayer2) {
+      return
+    }
+
+    try {
+      await db.createBeerPongGame(beerPongPlayer1, beerPongPlayer2)
+      setBeerPongPlayer1('')
+      setBeerPongPlayer2('')
+      await bumpMood(5)
+    } catch (error) {
+      console.error('Error starting beer pong game:', error)
+    }
+  }
+
+  const handleBeerPongShot = async (hit: boolean) => {
+    if (!beerPongGame) return
+
+    const isPlayer1Turn = beerPongGame.current_turn === 1
+
+    let newPlayer1Cups = beerPongGame.player1_cups
+    let newPlayer2Cups = beerPongGame.player2_cups
+
+    if (hit) {
+      if (isPlayer1Turn) {
+        newPlayer2Cups = Math.max(0, beerPongGame.player2_cups - 1)
+      } else {
+        newPlayer1Cups = Math.max(0, beerPongGame.player1_cups - 1)
+      }
+    }
+
+    const nextTurn = beerPongGame.current_turn === 1 ? 2 : 1
+
+    try {
+      if (newPlayer1Cups === 0 || newPlayer2Cups === 0) {
+        const winnerId = newPlayer1Cups === 0 ? beerPongGame.player2_id : beerPongGame.player1_id
+        await db.finishBeerPongGame(beerPongGame.id, winnerId)
+        await bumpMood(10)
+      } else {
+        await db.updateBeerPongGame(beerPongGame.id, {
+          player1_cups: newPlayer1Cups,
+          player2_cups: newPlayer2Cups,
+          current_turn: nextTurn
+        })
+        await bumpMood(1)
+      }
+    } catch (error) {
+      console.error('Error updating beer pong game:', error)
+    }
+  }
+
+  const endBeerPongGame = async () => {
+    if (!beerPongGame) return
+
+    try {
+      const winnerId = beerPongGame.player1_cups > beerPongGame.player2_cups
+        ? beerPongGame.player1_id
+        : beerPongGame.player2_id
+      await db.finishBeerPongGame(beerPongGame.id, winnerId)
+    } catch (error) {
+      console.error('Error ending beer pong game:', error)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="app">
@@ -1393,6 +1477,126 @@ function App() {
                 </div>
               </div>
             </div>
+          </section>
+
+          <section className="panel span-2 game-panel">
+            <div className="game-section-header">
+              <h2 className="game-section-title">🏓 Beer Pong Duel</h2>
+            </div>
+
+            {!beerPongGame ? (
+              <div className="beer-pong-setup">
+                <p className="panel-sub">Start en Beer Pong kamp mellem to spillere</p>
+                <div className="beer-pong-player-select">
+                  <div className="player-selector">
+                    <label>Spiller 1:</label>
+                    <select
+                      value={beerPongPlayer1}
+                      onChange={(e) => setBeerPongPlayer1(e.target.value)}
+                    >
+                      <option value="">Vælg spiller</option>
+                      {participants.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="vs-divider">VS</div>
+                  <div className="player-selector">
+                    <label>Spiller 2:</label>
+                    <select
+                      value={beerPongPlayer2}
+                      onChange={(e) => setBeerPongPlayer2(e.target.value)}
+                    >
+                      <option value="">Vælg spiller</option>
+                      {participants.map((p) => (
+                        <option key={p.id} value={p.id} disabled={p.id === beerPongPlayer1}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <button
+                  className="primary"
+                  onClick={startBeerPongGame}
+                  disabled={!beerPongPlayer1 || !beerPongPlayer2 || beerPongPlayer1 === beerPongPlayer2}
+                >
+                  Start kamp
+                </button>
+              </div>
+            ) : (
+              <div className="beer-pong-active">
+                {beerPongGame.status === 'finished' ? (
+                  <div className="beer-pong-finished">
+                    <h3>🏆 Kamp afsluttet!</h3>
+                    <p className="winner-announcement">
+                      Vinderen er: <strong>{participants.find(p => p.id === beerPongGame.winner_id)?.name}</strong>
+                    </p>
+                    <p className="muted">Taberen drikker 3 ekstra slurke!</p>
+                    <button className="primary" onClick={() => setBeerPongGame(null)}>
+                      Start ny kamp
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="beer-pong-board">
+                      <div className={`beer-pong-player ${beerPongGame.current_turn === 1 ? 'active-turn' : ''}`}>
+                        <h3>{participants.find(p => p.id === beerPongGame.player1_id)?.name}</h3>
+                        <div className="cups-container">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className={`cup ${i < beerPongGame.player1_cups ? 'standing' : 'hit'}`}
+                            >
+                              🍺
+                            </div>
+                          ))}
+                        </div>
+                        <p className="cups-remaining">{beerPongGame.player1_cups} kopper tilbage</p>
+                      </div>
+
+                      <div className="beer-pong-divider">VS</div>
+
+                      <div className={`beer-pong-player ${beerPongGame.current_turn === 2 ? 'active-turn' : ''}`}>
+                        <h3>{participants.find(p => p.id === beerPongGame.player2_id)?.name}</h3>
+                        <div className="cups-container">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className={`cup ${i < beerPongGame.player2_cups ? 'standing' : 'hit'}`}
+                            >
+                              🍺
+                            </div>
+                          ))}
+                        </div>
+                        <p className="cups-remaining">{beerPongGame.player2_cups} kopper tilbage</p>
+                      </div>
+                    </div>
+
+                    <div className="beer-pong-controls">
+                      <p className="turn-indicator">
+                        <strong>
+                          {participants.find(p => p.id === (beerPongGame.current_turn === 1 ? beerPongGame.player1_id : beerPongGame.player2_id))?.name}
+                        </strong> sin tur
+                      </p>
+                      <div className="shot-buttons">
+                        <button className="hit-button" onClick={() => handleBeerPongShot(true)}>
+                          ✓ Ramt!
+                        </button>
+                        <button className="miss-button" onClick={() => handleBeerPongShot(false)}>
+                          ✗ Bom
+                        </button>
+                      </div>
+                      <button className="ghost small" onClick={endBeerPongGame}>
+                        Afslut kamp
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </section>
         </div>
       </div>

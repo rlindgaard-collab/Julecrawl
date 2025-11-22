@@ -1245,3 +1245,222 @@ button.ghost {
   word-break: break-all;
   margin-top: 1rem;
 }
+
+.beer-pong-setup {
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.beer-pong-player-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+}
+
+.player-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 180px;
+}
+
+.player-selector label {
+  font-weight: 600;
+  color: #f3f0db;
+}
+
+.player-selector select {
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid rgba(191, 166, 98, 0.4);
+  background: rgba(18, 30, 22, 0.8);
+  color: #f3f0db;
+  font-size: 1rem;
+}
+
+.vs-divider {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e8cd78;
+  text-shadow: 0 0 10px rgba(232, 205, 120, 0.4);
+}
+
+.beer-pong-active {
+  padding: 1rem 0;
+}
+
+.beer-pong-board {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 2rem;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba(191, 166, 98, 0.1);
+  border-radius: 14px;
+  border: 1px solid rgba(191, 166, 98, 0.25);
+}
+
+.beer-pong-player {
+  text-align: center;
+  opacity: 0.6;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.beer-pong-player.active-turn {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.beer-pong-player h3 {
+  margin: 0 0 1rem;
+  color: #f3f0db;
+  font-size: 1.2rem;
+}
+
+.cups-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  justify-items: center;
+}
+
+.cup {
+  font-size: 2rem;
+  transition: all 0.3s;
+}
+
+.cup.standing {
+  opacity: 1;
+  filter: grayscale(0);
+}
+
+.cup.hit {
+  opacity: 0.2;
+  filter: grayscale(1);
+  transform: scale(0.7);
+}
+
+.cups-remaining {
+  margin: 0;
+  color: #dcd9b9;
+  font-weight: 600;
+}
+
+.beer-pong-divider {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #e8cd78;
+  text-shadow: 0 0 15px rgba(232, 205, 120, 0.5);
+}
+
+.beer-pong-controls {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+.turn-indicator {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f3f0db;
+}
+
+.turn-indicator strong {
+  color: #e8cd78;
+}
+
+.shot-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.hit-button {
+  background: linear-gradient(135deg, rgba(120, 200, 120, 0.8), rgba(80, 160, 80, 0.8));
+  border: 1px solid rgba(120, 200, 120, 0.6);
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.hit-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(120, 200, 120, 0.4);
+}
+
+.miss-button {
+  background: linear-gradient(135deg, rgba(200, 80, 80, 0.8), rgba(160, 60, 60, 0.8));
+  border: 1px solid rgba(200, 80, 80, 0.6);
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.miss-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(200, 80, 80, 0.4);
+}
+
+.beer-pong-finished {
+  text-align: center;
+  padding: 2rem;
+  background: rgba(191, 166, 98, 0.15);
+  border-radius: 14px;
+  border: 2px solid rgba(232, 205, 120, 0.4);
+}
+
+.beer-pong-finished h3 {
+  margin: 0 0 1rem;
+  font-size: 2rem;
+  color: #e8cd78;
+  text-shadow: 0 0 20px rgba(232, 205, 120, 0.5);
+}
+
+.winner-announcement {
+  font-size: 1.3rem;
+  margin: 1rem 0;
+  color: #f3f0db;
+}
+
+.winner-announcement strong {
+  color: #e8cd78;
+  font-size: 1.5rem;
+}
+
+@media (max-width: 720px) {
+  .beer-pong-board {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .beer-pong-divider {
+    transform: rotate(90deg);
+  }
+
+  .shot-buttons {
+    flex-direction: column;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .hit-button,
+  .miss-button {
+    width: 100%;
+  }
+}
