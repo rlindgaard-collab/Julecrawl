@@ -456,7 +456,7 @@ function App() {
         return
       }
       if (restartTimer) {
-        await startTimer(30, true)
+        await startTimer(40, true)
       }
     } catch (error) {
       console.error('Error updating active stop:', error)
