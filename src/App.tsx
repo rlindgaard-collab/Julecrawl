@@ -952,19 +952,24 @@ function App() {
           ball_y = 99
         }
 
-        if (ball_x - BALL_SIZE / 2 <= PADDLE_WIDTH) {
+        if (ball_dx < 0 && ball_x - BALL_SIZE / 2 <= PADDLE_WIDTH) {
           const paddleTop = paddle1_y - PADDLE_HEIGHT / 2
           const paddleBottom = paddle1_y + PADDLE_HEIGHT / 2
 
-          if (ball_y >= paddleTop && ball_y <= paddleBottom && ball_dx < 0) {
+          if (ball_y >= paddleTop && ball_y <= paddleBottom) {
             ball_dx = Math.abs(ball_dx) * 1.05
             const hitPos = (ball_y - paddle1_y) / (PADDLE_HEIGHT / 2)
             ball_dy += hitPos * 0.8
             ball_x = PADDLE_WIDTH + BALL_SIZE / 2
+          } else if (ball_x <= 0) {
+            player2_score++
+            ball_x = 50
+            ball_y = 50
+            ball_dx = 0
+            ball_dy = 0
+            setPongCountdown(3)
           }
-        }
-
-        if (ball_x <= 0) {
+        } else if (ball_dx < 0 && ball_x <= 0) {
           player2_score++
           ball_x = 50
           ball_y = 50
@@ -973,19 +978,24 @@ function App() {
           setPongCountdown(3)
         }
 
-        if (ball_x + BALL_SIZE / 2 >= 100 - PADDLE_WIDTH) {
+        if (ball_dx > 0 && ball_x + BALL_SIZE / 2 >= 100 - PADDLE_WIDTH) {
           const paddleTop = paddle2_y - PADDLE_HEIGHT / 2
           const paddleBottom = paddle2_y + PADDLE_HEIGHT / 2
 
-          if (ball_y >= paddleTop && ball_y <= paddleBottom && ball_dx > 0) {
+          if (ball_y >= paddleTop && ball_y <= paddleBottom) {
             ball_dx = -Math.abs(ball_dx) * 1.05
             const hitPos = (ball_y - paddle2_y) / (PADDLE_HEIGHT / 2)
             ball_dy += hitPos * 0.8
             ball_x = 100 - PADDLE_WIDTH - BALL_SIZE / 2
+          } else if (ball_x >= 100) {
+            player1_score++
+            ball_x = 50
+            ball_y = 50
+            ball_dx = 0
+            ball_dy = 0
+            setPongCountdown(3)
           }
-        }
-
-        if (ball_x >= 100) {
+        } else if (ball_dx > 0 && ball_x >= 100) {
           player1_score++
           ball_x = 50
           ball_y = 50
