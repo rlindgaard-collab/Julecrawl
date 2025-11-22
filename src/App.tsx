@@ -1711,10 +1711,13 @@ function App() {
                   </div>
                 ) : (
                   <>
-                    <button className="ghost small" onClick={endPongGame} style={{ marginBottom: '1rem' }}>
-                      Afslut spil
-                    </button>
-                    <div className="pong-game-area">
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                      <p style={{ marginBottom: '1rem' }}>Pong spillet er midlertidigt inaktivt</p>
+                      <button className="ghost" onClick={endPongGame}>
+                        Afslut spil
+                      </button>
+                    </div>
+                    <div className="pong-game-area" style={{ display: 'none' }}>
                       <div className="pong-score-header">
                         <div className="pong-player-info">
                           <h3>{participants.find(p => p.id === pongGame.player1_id)?.name}</h3>
