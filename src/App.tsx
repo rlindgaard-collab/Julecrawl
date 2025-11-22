@@ -1058,28 +1058,42 @@ function App() {
   }
 
   useEffect(() => {
-    if (pongCountdown === null || pongCountdown <= 0) return
+    if (!isGameHost || pongCountdown === null || pongCountdown <= 0) return
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       const newCount = pongCountdown - 1
       if (newCount > 0) {
         setPongCountdown(newCount)
       } else {
         setPongCountdown(null)
+        const direction = Math.random() > 0.5 ? 1 : -1
+        const newBallDx = 1.2 * direction
+        const newBallDy = (Math.random() - 0.5) * 2
+
         setLocalPongState(prev => {
           if (!prev) return prev
-          const direction = Math.random() > 0.5 ? 1 : -1
           return {
             ...prev,
-            ball_dx: 1.2 * direction,
-            ball_dy: (Math.random() - 0.5) * 2
+            ball_dx: newBallDx,
+            ball_dy: newBallDy
           }
         })
+
+        if (pongGame) {
+          try {
+            await db.updatePongGame(pongGame.id, {
+              ball_dx: newBallDx,
+              ball_dy: newBallDy
+            })
+          } catch (error) {
+            console.error('Error updating ball velocity:', error)
+          }
+        }
       }
     }, 1000)
 
     return () => clearTimeout(timer)
-  }, [pongCountdown])
+  }, [pongCountdown, isGameHost, pongGame])
 
   if (isLoading) {
     return (
