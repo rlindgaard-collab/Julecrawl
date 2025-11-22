@@ -874,10 +874,12 @@ function App() {
     }
 
     try {
-      await db.createBeerPongGame(beerPongPlayer1, beerPongPlayer2)
-      setBeerPongPlayer1('')
-      setBeerPongPlayer2('')
-      await bumpMood(5)
+      const game = await db.createBeerPongGame(beerPongPlayer1, beerPongPlayer2)
+      if (game) {
+        setBeerPongPlayer1('')
+        setBeerPongPlayer2('')
+        await bumpMood(5)
+      }
     } catch (error) {
       console.error('Error starting beer pong game:', error)
     }
