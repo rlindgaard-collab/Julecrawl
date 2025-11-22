@@ -1724,10 +1724,20 @@ function App() {
                               {participants.find(p => p.id === pongGame.player1_id)?.name}
                             </p>
                             <div className="pong-buttons">
-                              <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'up'); }}>
+                              <button
+                                className="pong-btn"
+                                onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'up'); }}
+                                onTouchStart={(e) => { e.preventDefault(); movePaddle(1, 'up'); }}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
                                 ▲
                               </button>
-                              <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'down'); }}>
+                              <button
+                                className="pong-btn"
+                                onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'down'); }}
+                                onTouchStart={(e) => { e.preventDefault(); movePaddle(1, 'down'); }}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
                                 ▼
                               </button>
                             </div>
@@ -1739,10 +1749,20 @@ function App() {
                               {participants.find(p => p.id === pongGame.player2_id)?.name}
                             </p>
                             <div className="pong-buttons">
-                              <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'up'); }}>
+                              <button
+                                className="pong-btn"
+                                onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'up'); }}
+                                onTouchStart={(e) => { e.preventDefault(); movePaddle(2, 'up'); }}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
                                 ▲
                               </button>
-                              <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'down'); }}>
+                              <button
+                                className="pong-btn"
+                                onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'down'); }}
+                                onTouchStart={(e) => { e.preventDefault(); movePaddle(2, 'down'); }}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
                                 ▼
                               </button>
                             </div>

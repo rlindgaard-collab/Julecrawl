@@ -1608,6 +1608,9 @@ button.ghost {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .pong-btn:hover {
