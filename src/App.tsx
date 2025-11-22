@@ -909,6 +909,8 @@ function App() {
   } | null>(null)
   const [pongCountdown, setPongCountdown] = useState<number | null>(null)
 
+  const isGameHost = pongGame && currentUserId === pongGame.player1_id
+
   useEffect(() => {
     if (!pongGame || pongGame.status !== 'active') {
       setLocalPongState(null)
@@ -927,41 +929,52 @@ function App() {
       player2_score: pongGame.player2_score
     })
 
-    setPongCountdown(3)
+    if (isGameHost) {
+      setPongCountdown(3)
+    }
 
     const PADDLE_HEIGHT = 15
     const PADDLE_WIDTH = 3
     const BALL_SIZE = 2
     const WINNING_SCORE = 5
 
-    const gameLoop = setInterval(() => {
-      setLocalPongState(prev => {
-        if (!prev || !pongGame) return prev
+    if (isGameHost) {
+      const gameLoop = setInterval(() => {
+        setLocalPongState(prev => {
+          if (!prev || !pongGame) return prev
 
-        let { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score } = prev
+          let { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score } = prev
 
-        ball_x += ball_dx * 0.6
-        ball_y += ball_dy * 0.6
+          ball_x += ball_dx * 0.6
+          ball_y += ball_dy * 0.6
 
-        if (ball_y <= 1) {
-          ball_dy = Math.abs(ball_dy)
-          ball_y = 1
-        }
-        if (ball_y >= 99) {
-          ball_dy = -Math.abs(ball_dy)
-          ball_y = 99
-        }
+          if (ball_y <= 1) {
+            ball_dy = Math.abs(ball_dy)
+            ball_y = 1
+          }
+          if (ball_y >= 99) {
+            ball_dy = -Math.abs(ball_dy)
+            ball_y = 99
+          }
 
-        if (ball_dx < 0 && ball_x - BALL_SIZE / 2 <= PADDLE_WIDTH) {
-          const paddleTop = paddle1_y - PADDLE_HEIGHT / 2
-          const paddleBottom = paddle1_y + PADDLE_HEIGHT / 2
+          if (ball_dx < 0 && ball_x - BALL_SIZE / 2 <= PADDLE_WIDTH) {
+            const paddleTop = paddle1_y - PADDLE_HEIGHT / 2
+            const paddleBottom = paddle1_y + PADDLE_HEIGHT / 2
 
-          if (ball_y >= paddleTop && ball_y <= paddleBottom) {
-            ball_dx = Math.abs(ball_dx) * 1.05
-            const hitPos = (ball_y - paddle1_y) / (PADDLE_HEIGHT / 2)
-            ball_dy += hitPos * 0.8
-            ball_x = PADDLE_WIDTH + BALL_SIZE / 2
-          } else if (ball_x <= 0) {
+            if (ball_y >= paddleTop && ball_y <= paddleBottom) {
+              ball_dx = Math.abs(ball_dx) * 1.05
+              const hitPos = (ball_y - paddle1_y) / (PADDLE_HEIGHT / 2)
+              ball_dy += hitPos * 0.8
+              ball_x = PADDLE_WIDTH + BALL_SIZE / 2
+            } else if (ball_x <= 0) {
+              player2_score++
+              ball_x = 50
+              ball_y = 50
+              ball_dx = 0
+              ball_dy = 0
+              setPongCountdown(3)
+            }
+          } else if (ball_dx < 0 && ball_x <= 0) {
             player2_score++
             ball_x = 50
             ball_y = 50
@@ -969,25 +982,25 @@ function App() {
             ball_dy = 0
             setPongCountdown(3)
           }
-        } else if (ball_dx < 0 && ball_x <= 0) {
-          player2_score++
-          ball_x = 50
-          ball_y = 50
-          ball_dx = 0
-          ball_dy = 0
-          setPongCountdown(3)
-        }
 
-        if (ball_dx > 0 && ball_x + BALL_SIZE / 2 >= 100 - PADDLE_WIDTH) {
-          const paddleTop = paddle2_y - PADDLE_HEIGHT / 2
-          const paddleBottom = paddle2_y + PADDLE_HEIGHT / 2
+          if (ball_dx > 0 && ball_x + BALL_SIZE / 2 >= 100 - PADDLE_WIDTH) {
+            const paddleTop = paddle2_y - PADDLE_HEIGHT / 2
+            const paddleBottom = paddle2_y + PADDLE_HEIGHT / 2
 
-          if (ball_y >= paddleTop && ball_y <= paddleBottom) {
-            ball_dx = -Math.abs(ball_dx) * 1.05
-            const hitPos = (ball_y - paddle2_y) / (PADDLE_HEIGHT / 2)
-            ball_dy += hitPos * 0.8
-            ball_x = 100 - PADDLE_WIDTH - BALL_SIZE / 2
-          } else if (ball_x >= 100) {
+            if (ball_y >= paddleTop && ball_y <= paddleBottom) {
+              ball_dx = -Math.abs(ball_dx) * 1.05
+              const hitPos = (ball_y - paddle2_y) / (PADDLE_HEIGHT / 2)
+              ball_dy += hitPos * 0.8
+              ball_x = 100 - PADDLE_WIDTH - BALL_SIZE / 2
+            } else if (ball_x >= 100) {
+              player1_score++
+              ball_x = 50
+              ball_y = 50
+              ball_dx = 0
+              ball_dy = 0
+              setPongCountdown(3)
+            }
+          } else if (ball_dx > 0 && ball_x >= 100) {
             player1_score++
             ball_x = 50
             ball_y = 50
@@ -995,54 +1008,53 @@ function App() {
             ball_dy = 0
             setPongCountdown(3)
           }
-        } else if (ball_dx > 0 && ball_x >= 100) {
-          player1_score++
-          ball_x = 50
-          ball_y = 50
-          ball_dx = 0
-          ball_dy = 0
-          setPongCountdown(3)
+
+          ball_dy = Math.max(-2.5, Math.min(2.5, ball_dy))
+          ball_dx = Math.max(-3, Math.min(3, ball_dx))
+
+          if (player1_score >= WINNING_SCORE || player2_score >= WINNING_SCORE) {
+            const winnerId = player1_score >= WINNING_SCORE ? pongGame.player1_id : pongGame.player2_id
+            db.finishPongGame(pongGame.id, winnerId)
+          }
+
+          return { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score }
+        })
+      }, 16)
+
+      const syncInterval = setInterval(async () => {
+        if (localPongState && pongGame) {
+          try {
+            await db.updatePongGame(pongGame.id, localPongState)
+          } catch (error) {
+            console.error('Error syncing pong game:', error)
+          }
         }
+      }, 100)
 
-        ball_dy = Math.max(-2.5, Math.min(2.5, ball_dy))
-        ball_dx = Math.max(-3, Math.min(3, ball_dx))
-
-        if (player1_score >= WINNING_SCORE || player2_score >= WINNING_SCORE) {
-          const winnerId = player1_score >= WINNING_SCORE ? pongGame.player1_id : pongGame.player2_id
-          db.finishPongGame(pongGame.id, winnerId)
-        }
-
-        return { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score }
-      })
-    }, 16)
-
-    const syncInterval = setInterval(async () => {
-      if (localPongState && pongGame) {
-        try {
-          await db.updatePongGame(pongGame.id, localPongState)
-        } catch (error) {
-          console.error('Error syncing pong game:', error)
-        }
+      return () => {
+        clearInterval(gameLoop)
+        clearInterval(syncInterval)
       }
-    }, 500)
-
-    return () => {
-      clearInterval(gameLoop)
-      clearInterval(syncInterval)
     }
-  }, [pongGame])
+  }, [pongGame, isGameHost])
 
-  const movePaddle = (player: 1 | 2, direction: 'up' | 'down') => {
-    setLocalPongState(prev => {
-      if (!prev) return prev
+  const movePaddle = async (player: 1 | 2, direction: 'up' | 'down') => {
+    if (!pongGame) return
 
-      const currentY = player === 1 ? prev.paddle1_y : prev.paddle2_y
-      const newY = direction === 'up' ? Math.max(10, currentY - 3) : Math.min(90, currentY + 3)
+    const currentY = player === 1 ? pongGame.paddle1_y : pongGame.paddle2_y
+    const newY = direction === 'up' ? Math.max(10, currentY - 3) : Math.min(90, currentY + 3)
 
-      return player === 1
-        ? { ...prev, paddle1_y: newY }
-        : { ...prev, paddle2_y: newY }
-    })
+    const updates = player === 1
+      ? { paddle1_y: newY }
+      : { paddle2_y: newY }
+
+    setLocalPongState(prev => prev ? { ...prev, ...updates } : prev)
+
+    try {
+      await db.updatePongGame(pongGame.id, updates)
+    } catch (error) {
+      console.error('Error updating paddle:', error)
+    }
   }
 
   useEffect(() => {
@@ -1713,9 +1725,9 @@ function App() {
                           style={{ top: `${localPongState?.paddle2_y ?? pongGame.paddle2_y}%` }}
                         />
                         <div className="pong-center-line" />
-                        {pongCountdown !== null && (
+                        {(pongCountdown !== null || (pongGame.ball_dx === 0 && pongGame.ball_dy === 0)) && (
                           <div className="pong-countdown">
-                            {pongCountdown}
+                            {pongCountdown ?? ''}
                           </div>
                         )}
                       </div>
