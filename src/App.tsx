@@ -995,7 +995,6 @@ function App() {
         if (player1_score >= WINNING_SCORE || player2_score >= WINNING_SCORE) {
           const winnerId = player1_score >= WINNING_SCORE ? pongGame.player1_id : pongGame.player2_id
           db.finishPongGame(pongGame.id, winnerId)
-          bumpMood(1)
         }
 
         return { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score }
