@@ -960,7 +960,6 @@ function App() {
             ball_y = 50
             ball_dx = 1.2
             ball_dy = (Math.random() - 0.5) * 2
-            bumpMood(3)
           }
         }
 
@@ -979,7 +978,6 @@ function App() {
             ball_y = 50
             ball_dx = -1.2
             ball_dy = (Math.random() - 0.5) * 2
-            bumpMood(3)
           }
         }
 
@@ -989,7 +987,7 @@ function App() {
         if (localScore.player1 >= WINNING_SCORE || localScore.player2 >= WINNING_SCORE) {
           const winnerId = localScore.player1 >= WINNING_SCORE ? pongGame.player1_id : pongGame.player2_id
           db.finishPongGame(pongGame.id, winnerId)
-          bumpMood(10)
+          bumpMood(1)
         }
 
         return { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y }
