@@ -1708,32 +1708,36 @@ function App() {
                       </div>
 
                       <div className="pong-controls-grid">
-                        <div className="pong-control-section">
-                          <p className="pong-control-label">
-                            {participants.find(p => p.id === pongGame.player1_id)?.name}
-                          </p>
-                          <div className="pong-buttons">
-                            <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'up'); }}>
-                              ▲
-                            </button>
-                            <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'down'); }}>
-                              ▼
-                            </button>
+                        {currentUserId === pongGame.player1_id && (
+                          <div className="pong-control-section">
+                            <p className="pong-control-label">
+                              {participants.find(p => p.id === pongGame.player1_id)?.name}
+                            </p>
+                            <div className="pong-buttons">
+                              <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'up'); }}>
+                                ▲
+                              </button>
+                              <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'down'); }}>
+                                ▼
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <div className="pong-control-section">
-                          <p className="pong-control-label">
-                            {participants.find(p => p.id === pongGame.player2_id)?.name}
-                          </p>
-                          <div className="pong-buttons">
-                            <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'up'); }}>
-                              ▲
-                            </button>
-                            <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'down'); }}>
-                              ▼
-                            </button>
+                        )}
+                        {currentUserId === pongGame.player2_id && (
+                          <div className="pong-control-section">
+                            <p className="pong-control-label">
+                              {participants.find(p => p.id === pongGame.player2_id)?.name}
+                            </p>
+                            <div className="pong-buttons">
+                              <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'up'); }}>
+                                ▲
+                              </button>
+                              <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'down'); }}>
+                                ▼
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                     <button className="ghost small" onClick={endPongGame}>
