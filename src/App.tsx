@@ -898,94 +898,135 @@ function App() {
     }
   }
 
+  const [localPongState, setLocalPongState] = useState<{
+    ball_x: number
+    ball_y: number
+    ball_dx: number
+    ball_dy: number
+    paddle1_y: number
+    paddle2_y: number
+  } | null>(null)
+
   useEffect(() => {
-    if (!pongGame || pongGame.status !== 'active') return
+    if (!pongGame || pongGame.status !== 'active') {
+      setLocalPongState(null)
+      return
+    }
+
+    setLocalPongState({
+      ball_x: pongGame.ball_x,
+      ball_y: pongGame.ball_y,
+      ball_dx: pongGame.ball_dx,
+      ball_dy: pongGame.ball_dy,
+      paddle1_y: pongGame.paddle1_y,
+      paddle2_y: pongGame.paddle2_y
+    })
 
     const PADDLE_HEIGHT = 15
+    const PADDLE_WIDTH = 3
     const WINNING_SCORE = 5
+    let localScore = { player1: pongGame.player1_score, player2: pongGame.player2_score }
 
-    const gameLoop = setInterval(async () => {
-      try {
-        const game = await db.getActivePongGame()
-        if (!game) return
+    const gameLoop = setInterval(() => {
+      setLocalPongState(prev => {
+        if (!prev || !pongGame) return prev
 
-        let { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score } = game
+        let { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y } = prev
 
-        ball_x += ball_dx
-        ball_y += ball_dy
+        ball_x += ball_dx * 0.6
+        ball_y += ball_dy * 0.6
 
-        if (ball_y <= 0 || ball_y >= 100) {
-          ball_dy = -ball_dy
-          ball_y = Math.max(0, Math.min(100, ball_y))
+        if (ball_y <= 1) {
+          ball_dy = Math.abs(ball_dy)
+          ball_y = 1
+        }
+        if (ball_y >= 99) {
+          ball_dy = -Math.abs(ball_dy)
+          ball_y = 99
         }
 
-        if (ball_x <= 2) {
-          if (ball_y >= paddle1_y - PADDLE_HEIGHT / 2 && ball_y <= paddle1_y + PADDLE_HEIGHT / 2) {
-            ball_dx = Math.abs(ball_dx)
+        if (ball_x <= PADDLE_WIDTH + 1) {
+          const paddleTop = paddle1_y - PADDLE_HEIGHT / 2
+          const paddleBottom = paddle1_y + PADDLE_HEIGHT / 2
+
+          if (ball_y >= paddleTop && ball_y <= paddleBottom && ball_dx < 0) {
+            ball_dx = Math.abs(ball_dx) * 1.05
             const hitPos = (ball_y - paddle1_y) / (PADDLE_HEIGHT / 2)
-            ball_dy += hitPos * 0.5
-          } else {
-            player2_score++
+            ball_dy += hitPos * 0.8
+            ball_x = PADDLE_WIDTH + 1
+          } else if (ball_x <= 0) {
+            localScore.player2++
             ball_x = 50
             ball_y = 50
-            ball_dx = -1.5
-            ball_dy = Math.random() * 2 - 1
-            await bumpMood(3)
+            ball_dx = 1.2
+            ball_dy = (Math.random() - 0.5) * 2
+            bumpMood(3)
           }
         }
 
-        if (ball_x >= 98) {
-          if (ball_y >= paddle2_y - PADDLE_HEIGHT / 2 && ball_y <= paddle2_y + PADDLE_HEIGHT / 2) {
-            ball_dx = -Math.abs(ball_dx)
+        if (ball_x >= 100 - PADDLE_WIDTH - 1) {
+          const paddleTop = paddle2_y - PADDLE_HEIGHT / 2
+          const paddleBottom = paddle2_y + PADDLE_HEIGHT / 2
+
+          if (ball_y >= paddleTop && ball_y <= paddleBottom && ball_dx > 0) {
+            ball_dx = -Math.abs(ball_dx) * 1.05
             const hitPos = (ball_y - paddle2_y) / (PADDLE_HEIGHT / 2)
-            ball_dy += hitPos * 0.5
-          } else {
-            player1_score++
+            ball_dy += hitPos * 0.8
+            ball_x = 100 - PADDLE_WIDTH - 1
+          } else if (ball_x >= 100) {
+            localScore.player1++
             ball_x = 50
             ball_y = 50
-            ball_dx = 1.5
-            ball_dy = Math.random() * 2 - 1
-            await bumpMood(3)
+            ball_dx = -1.2
+            ball_dy = (Math.random() - 0.5) * 2
+            bumpMood(3)
           }
         }
 
-        ball_dy = Math.max(-3, Math.min(3, ball_dy))
+        ball_dy = Math.max(-2.5, Math.min(2.5, ball_dy))
+        ball_dx = Math.max(-3, Math.min(3, ball_dx))
 
-        if (player1_score >= WINNING_SCORE || player2_score >= WINNING_SCORE) {
-          const winnerId = player1_score >= WINNING_SCORE ? game.player1_id : game.player2_id
-          await db.finishPongGame(game.id, winnerId)
-          await bumpMood(10)
-        } else {
-          await db.updatePongGame(game.id, {
-            ball_x,
-            ball_y,
-            ball_dx,
-            ball_dy,
-            paddle1_y,
-            paddle2_y,
-            player1_score,
-            player2_score
-          })
+        if (localScore.player1 >= WINNING_SCORE || localScore.player2 >= WINNING_SCORE) {
+          const winnerId = localScore.player1 >= WINNING_SCORE ? pongGame.player1_id : pongGame.player2_id
+          db.finishPongGame(pongGame.id, winnerId)
+          bumpMood(10)
         }
-      } catch (error) {
-        console.error('Error in pong game loop:', error)
-      }
-    }, 50)
 
-    return () => clearInterval(gameLoop)
+        return { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y }
+      })
+    }, 16)
+
+    const syncInterval = setInterval(async () => {
+      if (localPongState && pongGame) {
+        try {
+          await db.updatePongGame(pongGame.id, {
+            ...localPongState,
+            player1_score: localScore.player1,
+            player2_score: localScore.player2
+          })
+        } catch (error) {
+          console.error('Error syncing pong game:', error)
+        }
+      }
+    }, 500)
+
+    return () => {
+      clearInterval(gameLoop)
+      clearInterval(syncInterval)
+    }
   }, [pongGame])
 
-  const movePaddle = async (player: 1 | 2, direction: 'up' | 'down') => {
-    if (!pongGame) return
+  const movePaddle = (player: 1 | 2, direction: 'up' | 'down') => {
+    setLocalPongState(prev => {
+      if (!prev) return prev
 
-    const currentY = player === 1 ? pongGame.paddle1_y : pongGame.paddle2_y
-    const newY = direction === 'up' ? Math.max(10, currentY - 5) : Math.min(90, currentY + 5)
+      const currentY = player === 1 ? prev.paddle1_y : prev.paddle2_y
+      const newY = direction === 'up' ? Math.max(10, currentY - 3) : Math.min(90, currentY + 3)
 
-    try {
-      await db.updatePongGame(pongGame.id, player === 1 ? { paddle1_y: newY } : { paddle2_y: newY })
-    } catch (error) {
-      console.error('Error moving paddle:', error)
-    }
+      return player === 1
+        ? { ...prev, paddle1_y: newY }
+        : { ...prev, paddle2_y: newY }
+    })
   }
 
   if (isLoading) {
@@ -1615,15 +1656,18 @@ function App() {
                       <div className="pong-canvas">
                         <div
                           className="pong-paddle pong-paddle-left"
-                          style={{ top: `${pongGame.paddle1_y}%` }}
+                          style={{ top: `${localPongState?.paddle1_y ?? pongGame.paddle1_y}%` }}
                         />
                         <div
                           className="pong-ball"
-                          style={{ left: `${pongGame.ball_x}%`, top: `${pongGame.ball_y}%` }}
+                          style={{
+                            left: `${localPongState?.ball_x ?? pongGame.ball_x}%`,
+                            top: `${localPongState?.ball_y ?? pongGame.ball_y}%`
+                          }}
                         />
                         <div
                           className="pong-paddle pong-paddle-right"
-                          style={{ top: `${pongGame.paddle2_y}%` }}
+                          style={{ top: `${localPongState?.paddle2_y ?? pongGame.paddle2_y}%` }}
                         />
                         <div className="pong-center-line" />
                       </div>
