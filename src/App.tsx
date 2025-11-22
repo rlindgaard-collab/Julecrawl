@@ -905,6 +905,8 @@ function App() {
     ball_dy: number
     paddle1_y: number
     paddle2_y: number
+    player1_score: number
+    player2_score: number
   } | null>(null)
 
   useEffect(() => {
@@ -919,19 +921,21 @@ function App() {
       ball_dx: pongGame.ball_dx,
       ball_dy: pongGame.ball_dy,
       paddle1_y: pongGame.paddle1_y,
-      paddle2_y: pongGame.paddle2_y
+      paddle2_y: pongGame.paddle2_y,
+      player1_score: pongGame.player1_score,
+      player2_score: pongGame.player2_score
     })
 
     const PADDLE_HEIGHT = 15
     const PADDLE_WIDTH = 3
+    const BALL_SIZE = 2
     const WINNING_SCORE = 5
-    let localScore = { player1: pongGame.player1_score, player2: pongGame.player2_score }
 
     const gameLoop = setInterval(() => {
       setLocalPongState(prev => {
         if (!prev || !pongGame) return prev
 
-        let { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y } = prev
+        let { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score } = prev
 
         ball_x += ball_dx * 0.6
         ball_y += ball_dy * 0.6
@@ -945,7 +949,7 @@ function App() {
           ball_y = 99
         }
 
-        if (ball_x <= PADDLE_WIDTH + 1) {
+        if (ball_x - BALL_SIZE / 2 <= PADDLE_WIDTH) {
           const paddleTop = paddle1_y - PADDLE_HEIGHT / 2
           const paddleBottom = paddle1_y + PADDLE_HEIGHT / 2
 
@@ -953,17 +957,19 @@ function App() {
             ball_dx = Math.abs(ball_dx) * 1.05
             const hitPos = (ball_y - paddle1_y) / (PADDLE_HEIGHT / 2)
             ball_dy += hitPos * 0.8
-            ball_x = PADDLE_WIDTH + 1
-          } else if (ball_x <= 0) {
-            localScore.player2++
-            ball_x = 50
-            ball_y = 50
-            ball_dx = 1.2
-            ball_dy = (Math.random() - 0.5) * 2
+            ball_x = PADDLE_WIDTH + BALL_SIZE / 2
           }
         }
 
-        if (ball_x >= 100 - PADDLE_WIDTH - 1) {
+        if (ball_x <= 0) {
+          player2_score++
+          ball_x = 50
+          ball_y = 50
+          ball_dx = 1.2
+          ball_dy = (Math.random() - 0.5) * 2
+        }
+
+        if (ball_x + BALL_SIZE / 2 >= 100 - PADDLE_WIDTH) {
           const paddleTop = paddle2_y - PADDLE_HEIGHT / 2
           const paddleBottom = paddle2_y + PADDLE_HEIGHT / 2
 
@@ -971,37 +977,35 @@ function App() {
             ball_dx = -Math.abs(ball_dx) * 1.05
             const hitPos = (ball_y - paddle2_y) / (PADDLE_HEIGHT / 2)
             ball_dy += hitPos * 0.8
-            ball_x = 100 - PADDLE_WIDTH - 1
-          } else if (ball_x >= 100) {
-            localScore.player1++
-            ball_x = 50
-            ball_y = 50
-            ball_dx = -1.2
-            ball_dy = (Math.random() - 0.5) * 2
+            ball_x = 100 - PADDLE_WIDTH - BALL_SIZE / 2
           }
+        }
+
+        if (ball_x >= 100) {
+          player1_score++
+          ball_x = 50
+          ball_y = 50
+          ball_dx = -1.2
+          ball_dy = (Math.random() - 0.5) * 2
         }
 
         ball_dy = Math.max(-2.5, Math.min(2.5, ball_dy))
         ball_dx = Math.max(-3, Math.min(3, ball_dx))
 
-        if (localScore.player1 >= WINNING_SCORE || localScore.player2 >= WINNING_SCORE) {
-          const winnerId = localScore.player1 >= WINNING_SCORE ? pongGame.player1_id : pongGame.player2_id
+        if (player1_score >= WINNING_SCORE || player2_score >= WINNING_SCORE) {
+          const winnerId = player1_score >= WINNING_SCORE ? pongGame.player1_id : pongGame.player2_id
           db.finishPongGame(pongGame.id, winnerId)
           bumpMood(1)
         }
 
-        return { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y }
+        return { ball_x, ball_y, ball_dx, ball_dy, paddle1_y, paddle2_y, player1_score, player2_score }
       })
     }, 16)
 
     const syncInterval = setInterval(async () => {
       if (localPongState && pongGame) {
         try {
-          await db.updatePongGame(pongGame.id, {
-            ...localPongState,
-            player1_score: localScore.player1,
-            player2_score: localScore.player2
-          })
+          await db.updatePongGame(pongGame.id, localPongState)
         } catch (error) {
           console.error('Error syncing pong game:', error)
         }
@@ -1642,12 +1646,12 @@ function App() {
                       <div className="pong-score-header">
                         <div className="pong-player-info">
                           <h3>{participants.find(p => p.id === pongGame.player1_id)?.name}</h3>
-                          <div className="pong-score">{pongGame.player1_score}</div>
+                          <div className="pong-score">{localPongState?.player1_score ?? pongGame.player1_score}</div>
                         </div>
                         <div className="pong-divider">-</div>
                         <div className="pong-player-info">
                           <h3>{participants.find(p => p.id === pongGame.player2_id)?.name}</h3>
-                          <div className="pong-score">{pongGame.player2_score}</div>
+                          <div className="pong-score">{localPongState?.player2_score ?? pongGame.player2_score}</div>
                         </div>
                       </div>
 
