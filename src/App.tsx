@@ -878,7 +878,6 @@ function App() {
       if (game) {
         setPongPlayer1('')
         setPongPlayer2('')
-        await bumpMood(5)
       }
     } catch (error) {
       console.error('Error starting pong game:', error)
