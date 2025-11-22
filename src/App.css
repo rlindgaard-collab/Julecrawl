@@ -1543,6 +1543,19 @@ button.ghost {
   box-shadow: 0 0 15px rgba(243, 240, 219, 0.8);
 }
 
+.pong-countdown {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 72px;
+  font-weight: bold;
+  color: rgba(191, 166, 98, 0.8);
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  pointer-events: none;
+}
+
 .pong-center-line {
   position: absolute;
   left: 50%;

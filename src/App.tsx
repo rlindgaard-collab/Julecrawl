@@ -907,6 +907,7 @@ function App() {
     player1_score: number
     player2_score: number
   } | null>(null)
+  const [pongCountdown, setPongCountdown] = useState<number | null>(null)
 
   useEffect(() => {
     if (!pongGame || pongGame.status !== 'active') {
@@ -964,8 +965,9 @@ function App() {
           player2_score++
           ball_x = 50
           ball_y = 50
-          ball_dx = 1.2
-          ball_dy = (Math.random() - 0.5) * 2
+          ball_dx = 0
+          ball_dy = 0
+          setPongCountdown(3)
         }
 
         if (ball_x + BALL_SIZE / 2 >= 100 - PADDLE_WIDTH) {
@@ -984,8 +986,9 @@ function App() {
           player1_score++
           ball_x = 50
           ball_y = 50
-          ball_dx = -1.2
-          ball_dy = (Math.random() - 0.5) * 2
+          ball_dx = 0
+          ball_dy = 0
+          setPongCountdown(3)
         }
 
         ball_dy = Math.max(-2.5, Math.min(2.5, ball_dy))
@@ -1028,6 +1031,30 @@ function App() {
         : { ...prev, paddle2_y: newY }
     })
   }
+
+  useEffect(() => {
+    if (pongCountdown === null || pongCountdown <= 0) return
+
+    const timer = setTimeout(() => {
+      const newCount = pongCountdown - 1
+      if (newCount > 0) {
+        setPongCountdown(newCount)
+      } else {
+        setPongCountdown(null)
+        setLocalPongState(prev => {
+          if (!prev) return prev
+          const direction = Math.random() > 0.5 ? 1 : -1
+          return {
+            ...prev,
+            ball_dx: 1.2 * direction,
+            ball_dy: (Math.random() - 0.5) * 2
+          }
+        })
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [pongCountdown])
 
   if (isLoading) {
     return (
@@ -1670,6 +1697,11 @@ function App() {
                           style={{ top: `${localPongState?.paddle2_y ?? pongGame.paddle2_y}%` }}
                         />
                         <div className="pong-center-line" />
+                        {pongCountdown !== null && (
+                          <div className="pong-countdown">
+                            {pongCountdown}
+                          </div>
+                        )}
                       </div>
 
                       <div className="pong-controls-grid">
@@ -1678,10 +1710,10 @@ function App() {
                             {participants.find(p => p.id === pongGame.player1_id)?.name}
                           </p>
                           <div className="pong-buttons">
-                            <button className="pong-btn" onClick={() => movePaddle(1, 'up')}>
+                            <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'up'); }}>
                               ▲
                             </button>
-                            <button className="pong-btn" onClick={() => movePaddle(1, 'down')}>
+                            <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(1, 'down'); }}>
                               ▼
                             </button>
                           </div>
@@ -1691,10 +1723,10 @@ function App() {
                             {participants.find(p => p.id === pongGame.player2_id)?.name}
                           </p>
                           <div className="pong-buttons">
-                            <button className="pong-btn" onClick={() => movePaddle(2, 'up')}>
+                            <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'up'); }}>
                               ▲
                             </button>
-                            <button className="pong-btn" onClick={() => movePaddle(2, 'down')}>
+                            <button className="pong-btn" onMouseDown={(e) => { e.preventDefault(); movePaddle(2, 'down'); }}>
                               ▼
                             </button>
                           </div>
