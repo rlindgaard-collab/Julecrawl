@@ -1713,30 +1713,30 @@ function App() {
                       <div className="pong-score-header">
                         <div className="pong-player-info">
                           <h3>{participants.find(p => p.id === pongGame.player1_id)?.name}</h3>
-                          <div className="pong-score">{localPongState?.player1_score ?? pongGame.player1_score}</div>
+                          <div className="pong-score">{isGameHost ? (localPongState?.player1_score ?? pongGame.player1_score) : pongGame.player1_score}</div>
                         </div>
                         <div className="pong-divider">-</div>
                         <div className="pong-player-info">
                           <h3>{participants.find(p => p.id === pongGame.player2_id)?.name}</h3>
-                          <div className="pong-score">{localPongState?.player2_score ?? pongGame.player2_score}</div>
+                          <div className="pong-score">{isGameHost ? (localPongState?.player2_score ?? pongGame.player2_score) : pongGame.player2_score}</div>
                         </div>
                       </div>
 
                       <div className="pong-canvas">
                         <div
                           className="pong-paddle pong-paddle-left"
-                          style={{ top: `${localPongState?.paddle1_y ?? pongGame.paddle1_y}%` }}
+                          style={{ top: `${isGameHost ? (localPongState?.paddle1_y ?? pongGame.paddle1_y) : pongGame.paddle1_y}%` }}
                         />
                         <div
                           className="pong-ball"
                           style={{
-                            left: `${localPongState?.ball_x ?? pongGame.ball_x}%`,
-                            top: `${localPongState?.ball_y ?? pongGame.ball_y}%`
+                            left: `${isGameHost ? (localPongState?.ball_x ?? pongGame.ball_x) : pongGame.ball_x}%`,
+                            top: `${isGameHost ? (localPongState?.ball_y ?? pongGame.ball_y) : pongGame.ball_y}%`
                           }}
                         />
                         <div
                           className="pong-paddle pong-paddle-right"
-                          style={{ top: `${localPongState?.paddle2_y ?? pongGame.paddle2_y}%` }}
+                          style={{ top: `${isGameHost ? (localPongState?.paddle2_y ?? pongGame.paddle2_y) : pongGame.paddle2_y}%` }}
                         />
                         <div className="pong-center-line" />
                         {(pongCountdown !== null || (pongGame.ball_dx === 0 && pongGame.ball_dy === 0)) && (
