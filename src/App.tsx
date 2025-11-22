@@ -908,6 +908,7 @@ function App() {
     player2_score: number
   } | null>(null)
   const [pongCountdown, setPongCountdown] = useState<number | null>(null)
+  const [gameInitialized, setGameInitialized] = useState(false)
 
   const isGameHost = pongGame && currentUserId === pongGame.player1_id
 
@@ -915,22 +916,26 @@ function App() {
     if (!pongGame || pongGame.status !== 'active') {
       setLocalPongState(null)
       setPongCountdown(null)
+      setGameInitialized(false)
       return
     }
 
-    setLocalPongState({
-      ball_x: pongGame.ball_x,
-      ball_y: pongGame.ball_y,
-      ball_dx: 0,
-      ball_dy: 0,
-      paddle1_y: pongGame.paddle1_y,
-      paddle2_y: pongGame.paddle2_y,
-      player1_score: pongGame.player1_score,
-      player2_score: pongGame.player2_score
-    })
+    if (!gameInitialized) {
+      setLocalPongState({
+        ball_x: pongGame.ball_x,
+        ball_y: pongGame.ball_y,
+        ball_dx: pongGame.ball_dx,
+        ball_dy: pongGame.ball_dy,
+        paddle1_y: pongGame.paddle1_y,
+        paddle2_y: pongGame.paddle2_y,
+        player1_score: pongGame.player1_score,
+        player2_score: pongGame.player2_score
+      })
 
-    if (isGameHost) {
-      setPongCountdown(3)
+      if (isGameHost) {
+        setPongCountdown(3)
+      }
+      setGameInitialized(true)
     }
 
     const PADDLE_HEIGHT = 15
