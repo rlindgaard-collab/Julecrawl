@@ -1680,6 +1680,9 @@ function App() {
                   </div>
                 ) : (
                   <>
+                    <button className="ghost small" onClick={endPongGame} style={{ marginBottom: '1rem' }}>
+                      Afslut spil
+                    </button>
                     <div className="pong-game-area">
                       <div className="pong-score-header">
                         <div className="pong-player-info">
@@ -1770,9 +1773,6 @@ function App() {
                         )}
                       </div>
                     </div>
-                    <button className="ghost small" onClick={endPongGame}>
-                      Afslut spil
-                    </button>
                   </>
                 )}
               </div>
